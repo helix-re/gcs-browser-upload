@@ -12,7 +12,8 @@ import {
   UnknownResponseError,
   MissingOptionsError,
   UploadIncompleteError,
-  InvalidChunkSizeError
+  InvalidChunkSizeError,
+  BadRequestError
 } from './errors'
 import * as errors from './errors'
 
@@ -189,7 +190,7 @@ function checkResponseStatus (res, opts, allowed = []) {
       throw new FileAlreadyUploadedError(opts.id, opts.url)
 
     case 400:
-      throw new InvalidContentRangeError(opts.url)
+      throw new BadRequestError(res)
 
     case 404:
       throw new UrlNotFoundError(opts.url)

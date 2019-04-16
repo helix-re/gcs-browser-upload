@@ -716,7 +716,7 @@ function checkResponseStatus(res, opts) {
       throw new _errors.FileAlreadyUploadedError(opts.id, opts.url);
 
     case 400:
-      throw new InvalidContentRangeError(status);
+      throw new _errors.BadRequestError(status);
 
     case 404:
       throw new _errors.UrlNotFoundError(opts.url);
@@ -1068,7 +1068,7 @@ function checkResponseStatus(res, opts) {
       throw new _errors.FileAlreadyUploadedError(opts.id, opts.url);
 
     case 400:
-      throw new InvalidContentRangeError(opts.url);
+      throw new _errors.BadRequestError(res);
 
     case 404:
       throw new _errors.UrlNotFoundError(opts.url);
@@ -1103,7 +1103,7 @@ exports.default = (0, _debug2.default)('gcs-browser-upload');
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.UploadAlreadyFinishedError = exports.InvalidChunkSizeError = exports.UploadIncompleteError = exports.MissingOptionsError = exports.UnknownResponseError = exports.UploadUnableToRecoverError = exports.UploadFailedError = exports.UrlNotFoundError = exports.FileAlreadyUploadedError = exports.ResumeIndexesOutOfSyncError = exports.InvalidContentRangeError = exports.DifferentChunkError = undefined;
+exports.UploadAlreadyFinishedError = exports.InvalidChunkSizeError = exports.UploadIncompleteError = exports.MissingOptionsError = exports.UnknownResponseError = exports.BadRequestError = exports.UploadUnableToRecoverError = exports.UploadFailedError = exports.UrlNotFoundError = exports.FileAlreadyUploadedError = exports.ResumeIndexesOutOfSyncError = exports.InvalidContentRangeError = exports.DifferentChunkError = undefined;
 
 var _classCallCheck2 = _dereq_('babel-runtime/helpers/classCallCheck');
 
@@ -1145,7 +1145,7 @@ var InvalidContentRangeError = exports.InvalidContentRangeError = function (_Ext
 
   function InvalidContentRangeError(localResumeIndex, remoteResumeIndex) {
     (0, _classCallCheck3.default)(this, InvalidContentRangeError);
-    return (0, _possibleConstructorReturn3.default)(this, (InvalidContentRangeError.__proto__ || Object.getPrototypeOf(InvalidContentRangeError)).call(this, 'Local resume index (' + localResumeIndex + ') is our of sync with the remote resume inxed (' + remoteResumeIndex + ')'));
+    return (0, _possibleConstructorReturn3.default)(this, (InvalidContentRangeError.__proto__ || Object.getPrototypeOf(InvalidContentRangeError)).call(this, 'Local resume index (' + localResumeIndex + ') is our of sync with the remote resume index (' + remoteResumeIndex + ')'));
   }
 
   return InvalidContentRangeError;
@@ -1206,35 +1206,49 @@ var UploadUnableToRecoverError = exports.UploadUnableToRecoverError = function (
   return UploadUnableToRecoverError;
 }(_es6Error2.default);
 
-var UnknownResponseError = exports.UnknownResponseError = function (_ExtendableError8) {
-  (0, _inherits3.default)(UnknownResponseError, _ExtendableError8);
+var BadRequestError = exports.BadRequestError = function (_ExtendableError8) {
+  (0, _inherits3.default)(BadRequestError, _ExtendableError8);
+
+  function BadRequestError(res) {
+    (0, _classCallCheck3.default)(this, BadRequestError);
+
+    var _this8 = (0, _possibleConstructorReturn3.default)(this, (BadRequestError.__proto__ || Object.getPrototypeOf(BadRequestError)).call(this, 'Bad request'));
+
+    _this8.res = res;
+    return _this8;
+  }
+
+  return BadRequestError;
+}(_es6Error2.default);
+
+var UnknownResponseError = exports.UnknownResponseError = function (_ExtendableError9) {
+  (0, _inherits3.default)(UnknownResponseError, _ExtendableError9);
 
   function UnknownResponseError(res) {
     (0, _classCallCheck3.default)(this, UnknownResponseError);
 
-    var _this8 = (0, _possibleConstructorReturn3.default)(this, (UnknownResponseError.__proto__ || Object.getPrototypeOf(UnknownResponseError)).call(this, 'Unknown response received from GCS'));
+    var _this9 = (0, _possibleConstructorReturn3.default)(this, (UnknownResponseError.__proto__ || Object.getPrototypeOf(UnknownResponseError)).call(this, 'Unknown response received from GCS'));
 
-    console.log('Unknown response res: ', res);
-    _this8.res = res;
-    return _this8;
+    _this9.res = res;
+    return _this9;
   }
 
   return UnknownResponseError;
 }(_es6Error2.default);
 
-var MissingOptionsError = exports.MissingOptionsError = function (_ExtendableError9) {
-  (0, _inherits3.default)(MissingOptionsError, _ExtendableError9);
+var MissingOptionsError = exports.MissingOptionsError = function (_ExtendableError10) {
+  (0, _inherits3.default)(MissingOptionsError, _ExtendableError10);
 
-  function MissingOptionsError(details) {
+  function MissingOptionsError(description) {
     (0, _classCallCheck3.default)(this, MissingOptionsError);
-    return (0, _possibleConstructorReturn3.default)(this, (MissingOptionsError.__proto__ || Object.getPrototypeOf(MissingOptionsError)).call(this, 'Missing required options for Upload - ' + details));
+    return (0, _possibleConstructorReturn3.default)(this, (MissingOptionsError.__proto__ || Object.getPrototypeOf(MissingOptionsError)).call(this, 'Missing required options for Upload - ' + description));
   }
 
   return MissingOptionsError;
 }(_es6Error2.default);
 
-var UploadIncompleteError = exports.UploadIncompleteError = function (_ExtendableError10) {
-  (0, _inherits3.default)(UploadIncompleteError, _ExtendableError10);
+var UploadIncompleteError = exports.UploadIncompleteError = function (_ExtendableError11) {
+  (0, _inherits3.default)(UploadIncompleteError, _ExtendableError11);
 
   function UploadIncompleteError() {
     (0, _classCallCheck3.default)(this, UploadIncompleteError);
@@ -1244,8 +1258,8 @@ var UploadIncompleteError = exports.UploadIncompleteError = function (_Extendabl
   return UploadIncompleteError;
 }(_es6Error2.default);
 
-var InvalidChunkSizeError = exports.InvalidChunkSizeError = function (_ExtendableError11) {
-  (0, _inherits3.default)(InvalidChunkSizeError, _ExtendableError11);
+var InvalidChunkSizeError = exports.InvalidChunkSizeError = function (_ExtendableError12) {
+  (0, _inherits3.default)(InvalidChunkSizeError, _ExtendableError12);
 
   function InvalidChunkSizeError(chunkSize) {
     (0, _classCallCheck3.default)(this, InvalidChunkSizeError);
@@ -1255,8 +1269,8 @@ var InvalidChunkSizeError = exports.InvalidChunkSizeError = function (_Extendabl
   return InvalidChunkSizeError;
 }(_es6Error2.default);
 
-var UploadAlreadyFinishedError = exports.UploadAlreadyFinishedError = function (_ExtendableError12) {
-  (0, _inherits3.default)(UploadAlreadyFinishedError, _ExtendableError12);
+var UploadAlreadyFinishedError = exports.UploadAlreadyFinishedError = function (_ExtendableError13) {
+  (0, _inherits3.default)(UploadAlreadyFinishedError, _ExtendableError13);
 
   function UploadAlreadyFinishedError() {
     (0, _classCallCheck3.default)(this, UploadAlreadyFinishedError);

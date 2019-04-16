@@ -11,7 +11,7 @@ export class DifferentChunkError extends ExtendableError {
 
 export class InvalidContentRangeError extends ExtendableError {
   constructor (localResumeIndex, remoteResumeIndex) {
-    super(`Local resume index (${localResumeIndex}) is our of sync with the remote resume inxed (${remoteResumeIndex})`)
+    super(`Local resume index (${localResumeIndex}) is our of sync with the remote resume index (${remoteResumeIndex})`)
   }
 }
 
@@ -45,17 +45,23 @@ export class UploadUnableToRecoverError extends ExtendableError {
   }
 }
 
+export class BadRequestError extends ExtendableError {
+  constructor (res) {
+    super('Bad request')
+    this.res = res
+  }
+}
+
 export class UnknownResponseError extends ExtendableError {
   constructor (res) {
     super('Unknown response received from GCS')
-    console.log('Unknown response res: ', res)
     this.res = res
   }
 }
 
 export class MissingOptionsError extends ExtendableError {
-  constructor (details) {
-    super(`Missing required options for Upload - ${details}`)
+  constructor (description) {
+    super(`Missing required options for Upload - ${description}`)
   }
 }
 

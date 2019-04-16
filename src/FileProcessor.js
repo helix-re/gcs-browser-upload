@@ -3,10 +3,11 @@ import SparkMD5 from 'spark-md5'
 import debug from './debug'
 
 class FileProcessor {
-  constructor (file, chunkSize) {
-    this.paused = false
-    this.file = file
+  constructor (file, chunkSize, calculateChecksum) {
+    this.calculateChecksum = calculateChecksum
     this.chunkSize = chunkSize
+    this.file = file
+    this.paused = false
     this.unpauseHandlers = []
   }
 
@@ -30,17 +31,13 @@ class FileProcessor {
       }
 
       const start = index * chunkSize
-      console.time('processIndex:file.slice')
       const section = file.slice(start, start + chunkSize)
-      console.timeEnd('processIndex:file.slice')
-
-      console.time('processIndex:getData')
-      const chunk = await getData(section)
-      console.timeEnd('processIndex:getData')
-
-      console.time('processIndex:getChecksum')
-      const checksum = getChecksum(spark, chunk)
-      console.timeEnd('processIndex:getChecksum')
+      let chunk = section;
+      let checksum;
+      if (this.calculateChecksum) {
+        chunk = await getData(section)
+        checksum = getChecksum(spark, chunk)
+      }
 
       const shouldContinue = await fn(checksum, index, chunk)
       if (shouldContinue !== false) {
