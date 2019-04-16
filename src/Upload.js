@@ -24,13 +24,14 @@ export default class Upload {
   constructor (args, allowSmallChunks) {
     var opts = {
       chunkSize: MIN_CHUNK_SIZE,
-      storage: args.storage,
       contentType: 'text/plain',
+      file: null,
+      id: null,
       onChunkUpload: () => {},
       onProgress: () => {},
-      id: null,
+      resumable: true,
+      storage: args.storage,
       url: null,
-      file: null,
       ...args
     }
 
@@ -50,7 +51,7 @@ export default class Upload {
 
     this.opts = opts
     this.meta = new FileMeta(opts.id, opts.file.size, opts.chunkSize, opts.storage)
-    this.processor = new FileProcessor(opts.file, opts.chunkSize)
+    this.processor = new FileProcessor(opts.file, opts.chunkSize, opts.resumable)
   }
 
   static safePut = safePut
@@ -84,9 +85,10 @@ export default class Upload {
     }
 
     const uploadChunk = async (checksum, index, chunk) => {
+      const chunkSize = chunk.byteLength || chunk.size;
       const total = opts.file.size
       const start = index * opts.chunkSize
-      const end = index * opts.chunkSize + chunk.byteLength - 1
+      const end = index * opts.chunkSize + chunkSize - 1
 
       const headers = {
         'Content-Type': opts.contentType,
@@ -94,7 +96,7 @@ export default class Upload {
       }
 
       debug(`Uploading chunk ${index}:`)
-      debug(` - Chunk length: ${chunk.byteLength}`)
+      debug(` - Chunk length: ${chunkSize}`)
       debug(` - Start: ${start}`)
       debug(` - End: ${end}`)
 
@@ -108,7 +110,7 @@ export default class Upload {
             totalBytes: total,
             uploadedBytes: start + progressEvent.loaded,
             chunkIndex: index,
-            chunkLength: chunk.byteLength || chunk.size
+            chunkLength: chunkSize,
           })
         }
       })
@@ -121,7 +123,7 @@ export default class Upload {
         totalBytes: total,
         uploadedBytes: end + 1,
         chunkIndex: index,
-        chunkLength: chunk.byteLength || chunk.size,
+        chunkLength: chunkSize,
         isLastChunk: total === end + 1
       })
     }
