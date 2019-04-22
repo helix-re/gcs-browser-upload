@@ -1,6 +1,6 @@
 {
   "name": "gcs-browser-upload-stream",
-  "version": "2.1.31-beta-helix",
+  "version": "1.01-helix",
   "description": "Resumable, chunked uploads to Google Cloud Storage from the browser",
   "main": "dist/index.js",
   "scripts": {

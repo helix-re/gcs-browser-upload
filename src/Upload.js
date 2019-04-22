@@ -25,6 +25,7 @@ export default class Upload {
     var opts = {
       chunkSize: MIN_CHUNK_SIZE,
       contentType: 'text/plain',
+      debug: false,
       file: null,
       id: null,
       onChunkUpload: () => {},
@@ -43,15 +44,20 @@ export default class Upload {
       throw new MissingOptionsError()
     }
 
-    debug('Creating new upload instance:')
-    debug(` - Url: ${opts.url}`)
-    debug(` - Id: ${opts.id}`)
-    debug(` - File size: ${opts.file.size}`)
-    debug(` - Chunk size: ${opts.chunkSize}`)
+    this.debug = opts.debug
+      ? console.log
+      : debug;
+
+    this.debug('Creating new upload instance:')
+    this.debug(` - Url: ${opts.url}`)
+    this.debug(` - Id: ${opts.id}`)
+    this.debug(` - File size: ${opts.file.size}`)
+    this.debug(` - Chunk size: ${opts.chunkSize}`)
 
     this.opts = opts
     this.meta = new FileMeta(opts.id, opts.file.size, opts.chunkSize, opts.storage)
     this.processor = new FileProcessor(opts.file, opts.chunkSize, opts.resumable)
+    this.processor.debug = this.debug;
   }
 
   static safePut = safePut
@@ -64,23 +70,23 @@ export default class Upload {
       const remoteResumeIndex = await getRemoteResumeIndex()
 
       const resumeIndex = Math.min(localResumeIndex, remoteResumeIndex)
-      debug(`Validating chunks up to index ${resumeIndex}`)
-      debug(` - Remote index: ${remoteResumeIndex}`)
-      debug(` - Local index: ${localResumeIndex}`)
+      this.debug(`Validating chunks up to index ${resumeIndex}`)
+      this.debug(` - Remote index: ${remoteResumeIndex}`)
+      this.debug(` - Local index: ${localResumeIndex}`)
 
       try {
         await processor.run(validateChunk, 0, resumeIndex)
       } catch (e) {
-        debug('Validation failed, starting from scratch')
-        debug(` - Failed chunk index: ${e.chunkIndex}`)
-        debug(` - Old checksum: ${e.originalChecksum}`)
-        debug(` - New checksum: ${e.newChecksum}`)
+        this.debug('Validation failed, starting from scratch')
+        this.debug(` - Failed chunk index: ${e.chunkIndex}`)
+        this.debug(` - Old checksum: ${e.originalChecksum}`)
+        this.debug(` - New checksum: ${e.newChecksum}`)
 
         await processor.run(uploadChunk)
         return
       }
 
-      debug('Validation passed, resuming upload')
+      this.debug('Validation passed, resuming upload')
       await processor.run(uploadChunk, resumeIndex)
     }
 
@@ -95,10 +101,10 @@ export default class Upload {
         'Content-Range': `bytes ${start}-${end}/${total}`,
       }
 
-      debug(`Uploading chunk ${index}:`)
-      debug(` - Chunk length: ${chunkSize}`)
-      debug(` - Start: ${start}`)
-      debug(` - End: ${end}`)
+      this.debug(`Uploading chunk ${index}:`)
+      this.debug(` - Chunk length: ${chunkSize}`)
+      this.debug(` - Start: ${start}`)
+      this.debug(` - End: ${end}`)
 
       // if in browser, upload blobs or else the browser can hang/crash on large ArrayBuffer uploads (150mb+)
       if (typeof self.Blob !== 'undefined') {
@@ -116,7 +122,7 @@ export default class Upload {
       })
 
       checkResponseStatus(res, opts, [200, 201, 308])
-      debug(`Chunk upload succeeded, adding checksum ${checksum}`)
+      this.debug(`Chunk upload succeeded, adding checksum ${checksum}`)
       meta.addChecksum(index, checksum)
 
       opts.onChunkUpload({
@@ -143,13 +149,13 @@ export default class Upload {
         'Content-Range': `bytes */${opts.file.size}`,
         'Content-Type': opts.contentType
       }
-      debug('Retrieving upload status from GCS')
+      this.debug('Retrieving upload status from GCS')
       const res = await safePut(opts.url, null, { headers })
 
       checkResponseStatus(res, opts, [308])
       const rangeHeader = res.headers['range']
       if (rangeHeader) {
-        debug(`Received upload status from GCS: ${rangeHeader}`)
+        this.debug(`Received upload status from GCS: ${rangeHeader}`)
         const range = rangeHeader.match(/(\d+?)-(\d+?)$/)
         bytesReceived = parseInt(range[2]) + 1
       }
@@ -162,31 +168,31 @@ export default class Upload {
     }
 
     if (meta.isResumable()) {
-      debug('Upload might be resumable')
+      this.debug('Upload might be resumable')
       await resumeUpload()
     } else {
-      debug('Upload not resumable, starting from scratch')
+      this.debug('Upload not resumable, starting from scratch')
       await processor.run(uploadChunk)
     }
-    debug('Upload complete, resetting meta')
+    this.debug('Upload complete, resetting meta')
     meta.reset()
     this.finished = true
   }
 
   pause () {
     this.processor.pause()
-    debug('Upload paused')
+    this.debug('Upload paused', this.opts);
   }
 
   unpause () {
     this.processor.unpause()
-    debug('Upload unpaused')
+    this.debug('Upload unpaused', this.opts);
   }
 
   cancel () {
     this.processor.pause()
     this.meta.reset()
-    debug('Upload cancelled')
+    this.debug('Upload cancelled')
   }
 }
 
