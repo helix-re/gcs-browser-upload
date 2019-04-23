@@ -66,10 +66,11 @@ unpause.addEventListener('click', () => {
   url: null, // required - GCS resumable URL
   file: null, // required - instance of File
   chunkSize: 262144, // optional - chunk size must be a multiple of 262144
+  contentType: 'text/plain', // optional - content type of the file being uploaded
+  debug: false, // optional - if true, console will be used as a logger
+  onChunkUpload: () => {} // optional - a function that will be called with progress information
   resumable: true, // optional - if true, calculates the checksum of every chunk which allows to resume upload after refreshing tab. May lead to browser crash with bigger files.
   storage: window.localStorage, // optional - storage mechanism used to persist chunk meta data
-  contentType: 'text/plain', // optional - content type of the file being uploaded
-  onChunkUpload: () => {} // optional - a function that will be called with progress information
 }
 ```
 

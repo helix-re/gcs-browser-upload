@@ -1,6 +1,5 @@
 import { Promise } from 'es6-promise'
 import SparkMD5 from 'spark-md5'
-import debug from './debug'
 
 class FileProcessor {
   constructor (file, chunkSize, calculateChecksum) {
@@ -9,6 +8,7 @@ class FileProcessor {
     this.file = file
     this.paused = false
     this.unpauseHandlers = []
+    this.debug = () => {};
   }
 
   async run (fn, startIndex = 0, endIndex) {
@@ -16,14 +16,14 @@ class FileProcessor {
     const totalChunks = Math.ceil(file.size / chunkSize)
     let spark = new SparkMD5.ArrayBuffer()
 
-    debug('Starting run on file:')
-    debug(` - Total chunks: ${totalChunks}`)
-    debug(` - Start index: ${startIndex}`)
-    debug(` - End index: ${endIndex || totalChunks}`)
+    this.debug('Starting run on file:')
+    this.debug(` - Total chunks: ${totalChunks}`)
+    this.debug(` - Start index: ${startIndex}`)
+    this.debug(` - End index: ${endIndex || totalChunks}`)
 
     const processIndex = async (index) => {
       if (index === totalChunks || index === endIndex) {
-        debug('File process complete')
+        this.debug('File process complete')
         return
       }
       if (this.paused) {

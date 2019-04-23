@@ -28,15 +28,16 @@ export default class UploadStream {
     this.spark = new SparkMD5.ArrayBuffer()
 
     var opts = {
-      chunkSize: MIN_CHUNK_SIZE,
-      storage: args.storage,
-      contentType: 'text/plain',
-      onChunkUpload: () => {},
-      onProgress: () => {},
-      id: null,
-      url: null,
       backoffMillis: 1000,
       backoffRetryLimit: 5,
+      chunkSize: MIN_CHUNK_SIZE,
+      contentType: 'text/plain',
+      debug: false,
+      id: null,
+      onChunkUpload: () => {},
+      onProgress: () => {},
+      storage: args.storage,
+      url: null,
       ...args
     }
 
@@ -52,11 +53,15 @@ export default class UploadStream {
       throw new MissingOptionsError('The \'url\' option is required')
     }
 
-    debug('Creating new upload stream instance:')
-    debug(` - Url: ${opts.url}`)
-    debug(` - Id: ${opts.id}`)
-    debug(' - File size: Unknown / Streaming')
-    debug(` - Chunk size: ${opts.chunkSize}`)
+    this.debug = opts.debug
+      ? console.log
+      : debug;
+
+    this.debug('Creating new upload stream instance:')
+    this.debug(` - Url: ${opts.url}`)
+    this.debug(` - Id: ${opts.id}`)
+    this.debug(' - File size: Unknown / Streaming')
+    this.debug(` - Chunk size: ${opts.chunkSize}`)
 
     this.opts = opts
     this.meta = new FileMeta(opts.id, 0, opts.chunkSize, opts.storage)
@@ -82,12 +87,12 @@ export default class UploadStream {
       'Content-Range': contentRange
     }
 
-    debug(`Uploading chunk ${index}:`)
-    debug(` - Chunk length: ${chunk.byteLength}`)
-    debug(` - Start: ${start}`)
-    debug(` - End: ${end}`)
-    debug(` - Headers: ${JSON.stringify(headers)}`)
-    debug(` - isLastChunk: ${isLastChunk}`)
+    this.debug(`Uploading chunk ${index}:`)
+    this.debug(` - Chunk length: ${chunk.byteLength}`)
+    this.debug(` - Start: ${start}`)
+    this.debug(` - End: ${end}`)
+    this.debug(` - Headers: ${JSON.stringify(headers)}`)
+    this.debug(` - isLastChunk: ${isLastChunk}`)
 
     // if (backoff >= opts.backoffRetryLimit) {
     //   throw new UploadUnableToRecoverError()
@@ -121,7 +126,7 @@ export default class UploadStream {
       throw new UploadUnableToRecoverError()
     }
 
-    debug(`Chunk upload succeeded, adding checksum ${checksum}`)
+    this.debug(`Chunk upload succeeded, adding checksum ${checksum}`)
     meta.addChecksum(index, checksum)
 
     opts.onChunkUpload({
@@ -138,26 +143,26 @@ export default class UploadStream {
       'Content-Range': 'bytes */*',
       'Content-Type': opts.contentType
     }
-    debug('Retrieving upload status from GCS')
+    this.debug('Retrieving upload status from GCS')
     const res = await safePut(opts.url, null, { headers })
 
-    debug(res)
+    this.debug(res)
 
     checkResponseStatus(res, opts, [308])
     const header = res.headers['range']
-    debug(`Received upload status from GCS: ${header}`)
+    this.debug(`Received upload status from GCS: ${header}`)
     const range = header.match(/(\d+?)-(\d+?)$/)
     const bytesReceived = parseInt(range[2]) + 1
     return Math.floor(bytesReceived / opts.chunkSize)
   }
 
   pause () {
-    debug('Upload Stream paused')
+    this.debug('Upload Stream paused')
     this.paused = true
   }
 
   unpause () {
-    debug('Upload Stream unpaused')
+    this.debug('Upload Stream unpaused')
     this.paused = false
     this.unpauseHandlers.forEach((fn) => fn())
     this.unpauseHandlers = []
@@ -171,7 +176,7 @@ export default class UploadStream {
 
   cancel () {
     this.meta.reset()
-    debug('Upload cancelled')
+    this.debug('Upload cancelled')
   }
 }
 
