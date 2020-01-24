@@ -1,6 +1,6 @@
 {
   "name": "gcs-browser-upload-stream",
-  "version": "1.0.2-helix",
+  "version": "1.0.1-helix",
   "lockfileVersion": 1,
   "requires": true,
   "dependencies": {
