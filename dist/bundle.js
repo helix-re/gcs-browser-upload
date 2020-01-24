@@ -152,20 +152,18 @@ var _sparkMd = _dereq_('spark-md5');
 
 var _sparkMd2 = _interopRequireDefault(_sparkMd);
 
-var _debug = _dereq_('./debug');
-
-var _debug2 = _interopRequireDefault(_debug);
-
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var FileProcessor = function () {
-  function FileProcessor(file, chunkSize) {
+  function FileProcessor(file, chunkSize, calculateChecksum) {
     (0, _classCallCheck3.default)(this, FileProcessor);
 
-    this.paused = false;
-    this.file = file;
+    this.calculateChecksum = calculateChecksum;
     this.chunkSize = chunkSize;
+    this.file = file;
+    this.paused = false;
     this.unpauseHandlers = [];
+    this.debug = function () {};
   }
 
   (0, _createClass3.default)(FileProcessor, [{
@@ -186,10 +184,10 @@ var FileProcessor = function () {
                 spark = new _sparkMd2.default.ArrayBuffer();
 
 
-                (0, _debug2.default)('Starting run on file:');
-                (0, _debug2.default)(' - Total chunks: ' + totalChunks);
-                (0, _debug2.default)(' - Start index: ' + startIndex);
-                (0, _debug2.default)(' - End index: ' + (endIndex || totalChunks));
+                this.debug('Starting run on file:');
+                this.debug(' - Total chunks: ' + totalChunks);
+                this.debug(' - Start index: ' + startIndex);
+                this.debug(' - End index: ' + (endIndex || totalChunks));
 
                 processIndex = function () {
                   var _ref2 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee(index) {
@@ -203,7 +201,7 @@ var FileProcessor = function () {
                               break;
                             }
 
-                            (0, _debug2.default)('File process complete');
+                            _this.debug('File process complete');
                             return _context.abrupt('return');
 
                           case 3:
@@ -217,41 +215,39 @@ var FileProcessor = function () {
 
                           case 6:
                             start = index * chunkSize;
-
-                            console.time('processIndex:file.slice');
                             section = file.slice(start, start + chunkSize);
+                            chunk = section;
+                            checksum = void 0;
 
-                            console.timeEnd('processIndex:file.slice');
+                            if (!_this.calculateChecksum) {
+                              _context.next = 15;
+                              break;
+                            }
 
-                            console.time('processIndex:getData');
                             _context.next = 13;
                             return getData(section);
 
                           case 13:
                             chunk = _context.sent;
 
-                            console.timeEnd('processIndex:getData');
-
-                            console.time('processIndex:getChecksum');
                             checksum = getChecksum(spark, chunk);
 
-                            console.timeEnd('processIndex:getChecksum');
-
-                            _context.next = 20;
+                          case 15:
+                            _context.next = 17;
                             return fn(checksum, index, chunk);
 
-                          case 20:
+                          case 17:
                             shouldContinue = _context.sent;
 
                             if (!(shouldContinue !== false)) {
-                              _context.next = 24;
+                              _context.next = 21;
                               break;
                             }
 
-                            _context.next = 24;
+                            _context.next = 21;
                             return processIndex(index + 1);
 
-                          case 24:
+                          case 21:
                           case 'end':
                             return _context.stop();
                         }
@@ -324,7 +320,7 @@ function mergeArrayBuffers(a, b) {
 }
 
 exports.default = FileProcessor;
-},{"./debug":5,"babel-runtime/helpers/asyncToGenerator":42,"babel-runtime/helpers/classCallCheck":43,"babel-runtime/helpers/createClass":44,"babel-runtime/regenerator":49,"es6-promise":143,"spark-md5":152}],3:[function(_dereq_,module,exports){
+},{"babel-runtime/helpers/asyncToGenerator":42,"babel-runtime/helpers/classCallCheck":43,"babel-runtime/helpers/createClass":44,"babel-runtime/regenerator":49,"es6-promise":143,"spark-md5":152}],3:[function(_dereq_,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -381,13 +377,15 @@ var Upload = function () {
 
     var opts = (0, _extends3.default)({
       chunkSize: MIN_CHUNK_SIZE,
-      storage: args.storage,
       contentType: 'text/plain',
+      debug: false,
+      file: null,
+      id: null,
       onChunkUpload: function onChunkUpload() {},
       onProgress: function onProgress() {},
-      id: null,
-      url: null,
-      file: null
+      resumable: true,
+      storage: args.storage,
+      url: null
     }, args);
 
     if ((opts.chunkSize % MIN_CHUNK_SIZE !== 0 || opts.chunkSize === 0) && !allowSmallChunks) {
@@ -398,15 +396,18 @@ var Upload = function () {
       throw new _errors.MissingOptionsError();
     }
 
-    (0, _debug2.default)('Creating new upload instance:');
-    (0, _debug2.default)(' - Url: ' + opts.url);
-    (0, _debug2.default)(' - Id: ' + opts.id);
-    (0, _debug2.default)(' - File size: ' + opts.file.size);
-    (0, _debug2.default)(' - Chunk size: ' + opts.chunkSize);
+    this.debug = opts.debug ? console.log : _debug2.default;
+
+    this.debug('Creating new upload instance:');
+    this.debug(' - Url: ' + opts.url);
+    this.debug(' - Id: ' + opts.id);
+    this.debug(' - File size: ' + opts.file.size);
+    this.debug(' - Chunk size: ' + opts.chunkSize);
 
     this.opts = opts;
     this.meta = new _FileMeta2.default(opts.id, opts.file.size, opts.chunkSize, opts.storage);
-    this.processor = new _FileProcessor2.default(opts.file, opts.chunkSize);
+    this.processor = new _FileProcessor2.default(opts.file, opts.chunkSize, opts.resumable);
+    this.processor.debug = this.debug;
   }
 
   (0, _createClass3.default)(Upload, [{
@@ -424,58 +425,58 @@ var Upload = function () {
 
                 resumeUpload = function () {
                   var _ref2 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee() {
-                    var localResumeIndex, remoteResumeIndex, resumeIndex;
+                    var resumeIndex;
                     return _regenerator2.default.wrap(function _callee$(_context) {
                       while (1) {
                         switch (_context.prev = _context.next) {
                           case 0:
-                            localResumeIndex = meta.getResumeIndex();
-                            _context.next = 3;
+                            _context.next = 2;
                             return getRemoteResumeIndex();
 
-                          case 3:
-                            remoteResumeIndex = _context.sent;
-                            resumeIndex = Math.min(localResumeIndex, remoteResumeIndex);
+                          case 2:
+                            resumeIndex = _context.sent;
 
-                            (0, _debug2.default)('Validating chunks up to index ' + resumeIndex);
-                            (0, _debug2.default)(' - Remote index: ' + remoteResumeIndex);
-                            (0, _debug2.default)(' - Local index: ' + localResumeIndex);
 
-                            _context.prev = 8;
-                            _context.next = 11;
+                            // const resumeIndex = Math.min(localResumeIndex, remoteResumeIndex)
+                            _this.debug('Validating chunks up to index ' + resumeIndex);
+                            _this.debug(' - Remote index: ' + remoteResumeIndex);
+                            _this.debug(' - Local index: ' + localResumeIndex);
+
+                            _context.prev = 6;
+                            _context.next = 9;
                             return processor.run(validateChunk, 0, resumeIndex);
 
-                          case 11:
-                            _context.next = 22;
+                          case 9:
+                            _context.next = 20;
                             break;
 
-                          case 13:
-                            _context.prev = 13;
-                            _context.t0 = _context['catch'](8);
+                          case 11:
+                            _context.prev = 11;
+                            _context.t0 = _context['catch'](6);
 
-                            (0, _debug2.default)('Validation failed, starting from scratch');
-                            (0, _debug2.default)(' - Failed chunk index: ' + _context.t0.chunkIndex);
-                            (0, _debug2.default)(' - Old checksum: ' + _context.t0.originalChecksum);
-                            (0, _debug2.default)(' - New checksum: ' + _context.t0.newChecksum);
+                            _this.debug('Validation failed, starting from scratch');
+                            _this.debug(' - Failed chunk index: ' + _context.t0.chunkIndex);
+                            _this.debug(' - Old checksum: ' + _context.t0.originalChecksum);
+                            _this.debug(' - New checksum: ' + _context.t0.newChecksum);
 
-                            _context.next = 21;
+                            _context.next = 19;
                             return processor.run(uploadChunk);
 
-                          case 21:
+                          case 19:
                             return _context.abrupt('return');
 
-                          case 22:
+                          case 20:
 
-                            (0, _debug2.default)('Validation passed, resuming upload');
-                            _context.next = 25;
+                            _this.debug('Validation passed, resuming upload');
+                            _context.next = 23;
                             return processor.run(uploadChunk, resumeIndex);
 
-                          case 25:
+                          case 23:
                           case 'end':
                             return _context.stop();
                         }
                       }
-                    }, _callee, _this, [[8, 13]]);
+                    }, _callee, _this, [[6, 11]]);
                   }));
 
                   return function resumeUpload() {
@@ -485,58 +486,59 @@ var Upload = function () {
 
                 uploadChunk = function () {
                   var _ref3 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee2(checksum, index, chunk) {
-                    var total, start, end, headers, res;
+                    var chunkSize, total, start, end, headers, res;
                     return _regenerator2.default.wrap(function _callee2$(_context2) {
                       while (1) {
                         switch (_context2.prev = _context2.next) {
                           case 0:
+                            chunkSize = chunk.byteLength || chunk.size;
                             total = opts.file.size;
                             start = index * opts.chunkSize;
-                            end = index * opts.chunkSize + chunk.byteLength - 1;
+                            end = index * opts.chunkSize + chunkSize - 1;
                             headers = {
                               'Content-Type': opts.contentType,
                               'Content-Range': 'bytes ' + start + '-' + end + '/' + total
                             };
 
 
-                            (0, _debug2.default)('Uploading chunk ' + index + ':');
-                            (0, _debug2.default)(' - Chunk length: ' + chunk.byteLength);
-                            (0, _debug2.default)(' - Start: ' + start);
-                            (0, _debug2.default)(' - End: ' + end);
+                            _this.debug('Uploading chunk ' + index + ':');
+                            _this.debug(' - Chunk length: ' + chunkSize);
+                            _this.debug(' - Start: ' + start);
+                            _this.debug(' - End: ' + end);
 
                             // if in browser, upload blobs or else the browser can hang/crash on large ArrayBuffer uploads (150mb+)
                             if (typeof self.Blob !== 'undefined') {
                               chunk = new Blob([chunk]);
                             }
-                            _context2.next = 11;
+                            _context2.next = 12;
                             return (0, _http.safePut)(opts.url, chunk, {
                               headers: headers, onUploadProgress: function onUploadProgress(progressEvent) {
                                 opts.onProgress({
                                   totalBytes: total,
                                   uploadedBytes: start + progressEvent.loaded,
                                   chunkIndex: index,
-                                  chunkLength: chunk.byteLength || chunk.size
+                                  chunkLength: chunkSize
                                 });
                               }
                             });
 
-                          case 11:
+                          case 12:
                             res = _context2.sent;
 
 
                             checkResponseStatus(res, opts, [200, 201, 308]);
-                            (0, _debug2.default)('Chunk upload succeeded, adding checksum ' + checksum);
+                            _this.debug('Chunk upload succeeded, adding checksum ' + checksum);
                             meta.addChecksum(index, checksum);
 
                             opts.onChunkUpload({
                               totalBytes: total,
                               uploadedBytes: end + 1,
                               chunkIndex: index,
-                              chunkLength: chunk.byteLength || chunk.size,
+                              chunkLength: chunkSize,
                               isLastChunk: total === end + 1
                             });
 
-                          case 16:
+                          case 17:
                           case 'end':
                             return _context2.stop();
                         }
@@ -593,7 +595,7 @@ var Upload = function () {
                               'Content-Type': opts.contentType
                             };
 
-                            (0, _debug2.default)('Retrieving upload status from GCS');
+                            _this.debug('Retrieving upload status from GCS');
                             _context4.next = 5;
                             return (0, _http.safePut)(opts.url, null, { headers: headers });
 
@@ -605,7 +607,7 @@ var Upload = function () {
                             rangeHeader = res.headers['range'];
 
                             if (rangeHeader) {
-                              (0, _debug2.default)('Received upload status from GCS: ' + rangeHeader);
+                              _this.debug('Received upload status from GCS: ' + rangeHeader);
                               range = rangeHeader.match(/(\d+?)-(\d+?)$/);
 
                               bytesReceived = parseInt(range[2]) + 1;
@@ -639,7 +641,7 @@ var Upload = function () {
                   break;
                 }
 
-                (0, _debug2.default)('Upload might be resumable');
+                this.debug('Upload might be resumable');
                 _context5.next = 11;
                 return resumeUpload();
 
@@ -648,12 +650,12 @@ var Upload = function () {
                 break;
 
               case 13:
-                (0, _debug2.default)('Upload not resumable, starting from scratch');
+                this.debug('Upload not resumable, starting from scratch');
                 _context5.next = 16;
                 return processor.run(uploadChunk);
 
               case 16:
-                (0, _debug2.default)('Upload complete, resetting meta');
+                this.debug('Upload complete, resetting meta');
                 meta.reset();
                 this.finished = true;
 
@@ -675,20 +677,20 @@ var Upload = function () {
     key: 'pause',
     value: function pause() {
       this.processor.pause();
-      (0, _debug2.default)('Upload paused');
+      this.debug('Upload paused', this.opts);
     }
   }, {
     key: 'unpause',
     value: function unpause() {
       this.processor.unpause();
-      (0, _debug2.default)('Upload unpaused');
+      this.debug('Upload unpaused', this.opts);
     }
   }, {
     key: 'cancel',
     value: function cancel() {
       this.processor.pause();
       this.meta.reset();
-      (0, _debug2.default)('Upload cancelled');
+      this.debug('Upload cancelled');
     }
   }]);
   return Upload;
@@ -797,15 +799,16 @@ var UploadStream = function () {
     this.spark = new _sparkMd2.default.ArrayBuffer();
 
     var opts = (0, _extends3.default)({
+      backoffMillis: 1000,
+      backoffRetryLimit: 5,
       chunkSize: MIN_CHUNK_SIZE,
-      storage: args.storage,
       contentType: 'text/plain',
+      debug: false,
+      id: null,
       onChunkUpload: function onChunkUpload() {},
       onProgress: function onProgress() {},
-      id: null,
-      url: null,
-      backoffMillis: 1000,
-      backoffRetryLimit: 5
+      storage: args.storage,
+      url: null
     }, args);
 
     if ((opts.chunkSize % MIN_CHUNK_SIZE !== 0 || opts.chunkSize === 0) && !allowSmallChunks) {
@@ -820,11 +823,13 @@ var UploadStream = function () {
       throw new _errors.MissingOptionsError('The \'url\' option is required');
     }
 
-    (0, _debug2.default)('Creating new upload stream instance:');
-    (0, _debug2.default)(' - Url: ' + opts.url);
-    (0, _debug2.default)(' - Id: ' + opts.id);
-    (0, _debug2.default)(' - File size: Unknown / Streaming');
-    (0, _debug2.default)(' - Chunk size: ' + opts.chunkSize);
+    this.debug = opts.debug ? console.log : _debug2.default;
+
+    this.debug('Creating new upload stream instance:');
+    this.debug(' - Url: ' + opts.url);
+    this.debug(' - Id: ' + opts.id);
+    this.debug(' - File size: Unknown / Streaming');
+    this.debug(' - Chunk size: ' + opts.chunkSize);
 
     this.opts = opts;
     this.meta = new _FileMeta2.default(opts.id, 0, opts.chunkSize, opts.storage);
@@ -869,12 +874,12 @@ var UploadStream = function () {
                 };
 
 
-                (0, _debug2.default)('Uploading chunk ' + index + ':');
-                (0, _debug2.default)(' - Chunk length: ' + chunk.byteLength);
-                (0, _debug2.default)(' - Start: ' + start);
-                (0, _debug2.default)(' - End: ' + end);
-                (0, _debug2.default)(' - Headers: ' + JSON.stringify(headers));
-                (0, _debug2.default)(' - isLastChunk: ' + isLastChunk);
+                this.debug('Uploading chunk ' + index + ':');
+                this.debug(' - Chunk length: ' + chunk.byteLength);
+                this.debug(' - Start: ' + start);
+                this.debug(' - End: ' + end);
+                this.debug(' - Headers: ' + JSON.stringify(headers));
+                this.debug(' - isLastChunk: ' + isLastChunk);
 
                 // if (backoff >= opts.backoffRetryLimit) {
                 //   throw new UploadUnableToRecoverError()
@@ -941,7 +946,7 @@ var UploadStream = function () {
 
               case 26:
 
-                (0, _debug2.default)('Chunk upload succeeded, adding checksum ' + checksum);
+                this.debug('Chunk upload succeeded, adding checksum ' + checksum);
                 meta.addChecksum(index, checksum);
 
                 opts.onChunkUpload({
@@ -980,7 +985,7 @@ var UploadStream = function () {
                   'Content-Type': opts.contentType
                 };
 
-                (0, _debug2.default)('Retrieving upload status from GCS');
+                this.debug('Retrieving upload status from GCS');
                 _context3.next = 5;
                 return (0, _http.safePut)(opts.url, null, { headers: headers });
 
@@ -988,12 +993,12 @@ var UploadStream = function () {
                 res = _context3.sent;
 
 
-                (0, _debug2.default)(res);
+                this.debug(res);
 
                 checkResponseStatus(res, opts, [308]);
                 header = res.headers['range'];
 
-                (0, _debug2.default)('Received upload status from GCS: ' + header);
+                this.debug('Received upload status from GCS: ' + header);
                 range = header.match(/(\d+?)-(\d+?)$/);
                 bytesReceived = parseInt(range[2]) + 1;
                 return _context3.abrupt('return', Math.floor(bytesReceived / opts.chunkSize));
@@ -1015,13 +1020,13 @@ var UploadStream = function () {
   }, {
     key: 'pause',
     value: function pause() {
-      (0, _debug2.default)('Upload Stream paused');
+      this.debug('Upload Stream paused');
       this.paused = true;
     }
   }, {
     key: 'unpause',
     value: function unpause() {
-      (0, _debug2.default)('Upload Stream unpaused');
+      this.debug('Upload Stream unpaused');
       this.paused = false;
       this.unpauseHandlers.forEach(function (fn) {
         return fn();
@@ -1041,7 +1046,7 @@ var UploadStream = function () {
     key: 'cancel',
     value: function cancel() {
       this.meta.reset();
-      (0, _debug2.default)('Upload cancelled');
+      this.debug('Upload cancelled');
     }
   }]);
   return UploadStream;

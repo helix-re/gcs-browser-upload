@@ -66,10 +66,10 @@ export default class Upload {
     const { meta, processor, opts, finished } = this
 
     const resumeUpload = async () => {
-      const localResumeIndex = meta.getResumeIndex()
-      const remoteResumeIndex = await getRemoteResumeIndex()
+      // const localResumeIndex = meta.getResumeIndex()
+      const resumeIndex = await getRemoteResumeIndex()
 
-      const resumeIndex = Math.min(localResumeIndex, remoteResumeIndex)
+      // const resumeIndex = Math.min(localResumeIndex, remoteResumeIndex)
       this.debug(`Validating chunks up to index ${resumeIndex}`)
       this.debug(` - Remote index: ${remoteResumeIndex}`)
       this.debug(` - Local index: ${localResumeIndex}`)
