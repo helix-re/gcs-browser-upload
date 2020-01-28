@@ -58,20 +58,18 @@ var _sparkMd = require('spark-md5');
 
 var _sparkMd2 = _interopRequireDefault(_sparkMd);
 
-var _debug = require('./debug');
-
-var _debug2 = _interopRequireDefault(_debug);
-
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var FileProcessor = function () {
-  function FileProcessor(file, chunkSize) {
+  function FileProcessor(file, chunkSize, calculateChecksum) {
     (0, _classCallCheck3.default)(this, FileProcessor);
 
-    this.paused = false;
-    this.file = file;
+    this.calculateChecksum = calculateChecksum;
     this.chunkSize = chunkSize;
+    this.file = file;
+    this.paused = false;
     this.unpauseHandlers = [];
+    this.debug = function () {};
   }
 
   (0, _createClass3.default)(FileProcessor, [{
@@ -92,10 +90,10 @@ var FileProcessor = function () {
                 spark = new _sparkMd2.default.ArrayBuffer();
 
 
-                (0, _debug2.default)('Starting run on file:');
-                (0, _debug2.default)(' - Total chunks: ' + totalChunks);
-                (0, _debug2.default)(' - Start index: ' + startIndex);
-                (0, _debug2.default)(' - End index: ' + (endIndex || totalChunks));
+                this.debug('Starting run on file:');
+                this.debug(' - Total chunks: ' + totalChunks);
+                this.debug(' - Start index: ' + startIndex);
+                this.debug(' - End index: ' + (endIndex || totalChunks));
 
                 processIndex = function () {
                   var _ref2 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee(index) {
@@ -109,7 +107,7 @@ var FileProcessor = function () {
                               break;
                             }
 
-                            (0, _debug2.default)('File process complete');
+                            _this.debug('File process complete');
                             return _context.abrupt('return');
 
                           case 3:
@@ -123,41 +121,39 @@ var FileProcessor = function () {
 
                           case 6:
                             start = index * chunkSize;
-
-                            console.time('processIndex:file.slice');
                             section = file.slice(start, start + chunkSize);
+                            chunk = section;
+                            checksum = void 0;
 
-                            console.timeEnd('processIndex:file.slice');
+                            if (!_this.calculateChecksum) {
+                              _context.next = 15;
+                              break;
+                            }
 
-                            console.time('processIndex:getData');
                             _context.next = 13;
                             return getData(section);
 
                           case 13:
                             chunk = _context.sent;
 
-                            console.timeEnd('processIndex:getData');
-
-                            console.time('processIndex:getChecksum');
                             checksum = getChecksum(spark, chunk);
 
-                            console.timeEnd('processIndex:getChecksum');
-
-                            _context.next = 20;
+                          case 15:
+                            _context.next = 17;
                             return fn(checksum, index, chunk);
 
-                          case 20:
+                          case 17:
                             shouldContinue = _context.sent;
 
                             if (!(shouldContinue !== false)) {
-                              _context.next = 24;
+                              _context.next = 21;
                               break;
                             }
 
-                            _context.next = 24;
+                            _context.next = 21;
                             return processIndex(index + 1);
 
-                          case 24:
+                          case 21:
                           case 'end':
                             return _context.stop();
                         }
