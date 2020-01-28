@@ -31,6 +31,7 @@ export default class Upload {
       onChunkUpload: () => {},
       onProgress: () => {},
       resumable: true,
+      validateChecksum: true,
       storage: args.storage,
       url: null,
       ...args
@@ -56,7 +57,7 @@ export default class Upload {
 
     this.opts = opts
     this.meta = new FileMeta(opts.id, opts.file.size, opts.chunkSize, opts.storage)
-    this.processor = new FileProcessor(opts.file, opts.chunkSize, opts.resumable)
+    this.processor = new FileProcessor(opts.file, opts.chunkSize, opts.resumable && opts.validateChecksum)
     this.processor.debug = this.debug;
   }
 
@@ -69,25 +70,35 @@ export default class Upload {
       const localResumeIndex = meta.getResumeIndex()
       const remoteResumeIndex = await getRemoteResumeIndex()
 
-      const resumeIndex = Math.min(localResumeIndex, remoteResumeIndex)
-      this.debug(`Validating chunks up to index ${resumeIndex}`)
-      this.debug(` - Remote index: ${remoteResumeIndex}`)
-      this.debug(` - Local index: ${localResumeIndex}`)
-
-      try {
-        await processor.run(validateChunk, 0, resumeIndex)
-      } catch (e) {
-        this.debug('Validation failed, starting from scratch')
-        this.debug(` - Failed chunk index: ${e.chunkIndex}`)
-        this.debug(` - Old checksum: ${e.originalChecksum}`)
-        this.debug(` - New checksum: ${e.newChecksum}`)
-
-        await processor.run(uploadChunk)
-        return
+      let resumeIndex = remoteResumeIndex;
+      if(opts.validateChecksum) {
+        resumeIndex = Math.min(localResumeIndex, remoteResumeIndex)
+        this.debug(`Validating chunks up to index ${resumeIndex}`)
+        this.debug(` - Local index: ${localResumeIndex}`)
       }
 
-      this.debug('Validation passed, resuming upload')
-      await processor.run(uploadChunk, resumeIndex)
+      this.debug(` - Remote index: ${remoteResumeIndex}`)
+
+      if (opts.validateChecksum) {
+        try {
+          await processor.run(validateChunk, 0, resumeIndex)
+        } catch (e) {
+          this.debug('Validation failed, starting from scratch')
+          this.debug(` - Failed chunk index: ${e.chunkIndex}`)
+          this.debug(` - Old checksum: ${e.originalChecksum}`)
+          this.debug(` - New checksum: ${e.newChecksum}`)
+
+          await processor.run(uploadChunk)
+          return
+        }
+
+        this.debug('Validation passed, resuming upload')
+        await processor.run(uploadChunk, resumeIndex)
+      } else {
+
+        this.debug(`Uploading chunk starting at index ${resumeIndex}`)
+        await processor.run(uploadChunk, resumeIndex)
+      }
     }
 
     const uploadChunk = async (checksum, index, chunk) => {
