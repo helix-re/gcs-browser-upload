@@ -54,9 +54,11 @@ export default class Upload {
     this.debug(` - Id: ${opts.id}`)
     this.debug(` - File size: ${opts.file.size}`)
     this.debug(` - Chunk size: ${opts.chunkSize}`)
+    this.debug(` - Resumable: ${opts.resumable}`)
+    this.debug(` - Validate Checksum: ${opts.validateChecksum}`)
 
     this.opts = opts
-    this.meta = new FileMeta(opts.id, opts.file.size, opts.chunkSize, opts.storage)
+    this.meta = new FileMeta(opts.id, opts.file.size, opts.chunkSize, opts.storage, opts.resumable)
     this.processor = new FileProcessor(opts.file, opts.chunkSize, opts.resumable && opts.validateChecksum)
     this.processor.debug = this.debug;
   }
@@ -95,7 +97,6 @@ export default class Upload {
         this.debug('Validation passed, resuming upload')
         await processor.run(uploadChunk, resumeIndex)
       } else {
-
         this.debug(`Uploading chunk starting at index ${resumeIndex}`)
         await processor.run(uploadChunk, resumeIndex)
       }
@@ -134,7 +135,9 @@ export default class Upload {
 
       checkResponseStatus(res, opts, [200, 201, 308])
       this.debug(`Chunk upload succeeded, adding checksum ${checksum}`)
-      meta.addChecksum(index, checksum)
+      if (opts.validateChecksum) {
+        meta.addChecksum(index, checksum)
+      }
 
       opts.onChunkUpload({
         totalBytes: total,
