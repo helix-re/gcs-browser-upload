@@ -1,11 +1,12 @@
 const STORAGE_KEY = '__gcsBrowserUpload'
 
 export default class FileMeta {
-  constructor (id, fileSize, chunkSize, storage) {
+  constructor (id, fileSize, chunkSize, storage, resumable) {
     this.id = id
     this.fileSize = fileSize
     this.chunkSize = chunkSize
     this.storage = storage
+    this.resumable = resumable;
   }
 
   getMeta () {
@@ -33,7 +34,7 @@ export default class FileMeta {
 
   isResumable () {
     let meta = this.getMeta()
-    return meta.started && this.chunkSize === meta.chunkSize
+    return this.resumable || (meta.started && this.chunkSize === meta.chunkSize)
   }
 
   getResumeIndex () {
